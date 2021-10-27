@@ -1,7 +1,7 @@
-from lib.auditor import get_profitability_info
+import lib.auditor as auditor
+import lib.utils as utils
 from lib.models import Game
 from lib.table_scraper import TableScraper
-from lib.utils import get_dollar_exchange_rate, convert_price_to_int
 from os import getenv
 from steampy.client import SteamClient
 from steampy.models import GameOptions, Currency
@@ -35,19 +35,20 @@ class Speculater:
     def _update_limit_of_allowed_orders(self, update_sum_all_buy_orders: bool = False):
         if update_sum_all_buy_orders:
             self._sum_all_buy_orders = self._get_sum_all_buy_orders()
+            self._update_wallet_balance()
         self._limit_of_allowed_orders = (self._int_wallet_balance * 10) - self._sum_all_buy_orders
 
     def _get_dollar_max_buy_price(self) -> float:
-        dollar_exchange_rate = int(get_dollar_exchange_rate() * 10)
-        dollar_wallet_balance = self._int_wallet_balance / dollar_exchange_rate
-        dollar_limit_of_allowed_orders = self._limit_of_allowed_orders / dollar_exchange_rate
-        return dollar_wallet_balance if self._int_wallet_balance > self._limit_of_allowed_orders \
+        int_dollar_exchange_rate = int(utils.get_dollar_exchange_rate() * 100)
+        dollar_wallet_balance = self._int_wallet_balance / int_dollar_exchange_rate
+        dollar_limit_of_allowed_orders = self._limit_of_allowed_orders / int_dollar_exchange_rate
+        return dollar_wallet_balance if self._int_wallet_balance < self._limit_of_allowed_orders \
             else dollar_limit_of_allowed_orders
 
     def _get_sum_all_buy_orders(self) -> int:
         sum_all_buy_orders = 0
         for buy_order in self._get_buy_orders().values():
-            sum_all_buy_orders += convert_price_to_int(buy_order['price']) * buy_order['quantity']
+            sum_all_buy_orders += utils.convert_price_to_int(buy_order['price']) * buy_order['quantity']
         return sum_all_buy_orders
 
     def _get_items_name_in_buy_orders(self) -> list:
@@ -63,16 +64,19 @@ class Speculater:
     def _add_item_name_in_buy_orders(self, item_name: str) -> None:
         self._items_name_in_buy_orders.append(item_name)
 
-    # поки не використовується
-    def _get_my_inventory_items_value(self, game: GameOptions, key: str) -> list:
-        return [item[key] for item in self._steam_client.get_my_inventory(game=game).values()]
+    def _remove_item_name_in_buy_orders(self, item_name: str) -> None:
+        try:
+            self._items_name_in_buy_orders.remove(item_name)
+        except ValueError:
+            pass
 
-    def _get_my_inventory_items_name_id(self, game: GameOptions) -> list:
-        return [item_name_id for item_name_id in self._steam_client.get_my_inventory(game=game).keys()]
+    def _get_my_inventory_asset_id_end_item_name(self, game: GameOptions) -> list:
+        return [(asset_id, values['name'])
+                for asset_id, values in self._steam_client.get_my_inventory(game=game).items()]
 
     def if_profit_create_buy_order(self, item_hash_name: str, game: GameOptions, is_recursion: bool = False):
         if item_hash_name not in self._items_name_in_buy_orders:
-            item_audit_info = get_profitability_info(item_hash_name, game, self._steam_client, currency=self.currency)
+            item_audit_info = auditor.get_profitability_info(item_hash_name, game, self._steam_client)
             #####
             print(item_hash_name, end='')
             #####
@@ -93,7 +97,6 @@ class Speculater:
                         self._sum_all_buy_orders += item_audit_info.buy_price
                         self._update_limit_of_allowed_orders()
                     except ApiException:
-                        self._update_wallet_balance()
                         self._update_limit_of_allowed_orders(update_sum_all_buy_orders=True)
                         dollar_max_buy_price = self._get_dollar_max_buy_price()
                         if dollar_max_buy_price < 0.1:
@@ -123,10 +126,46 @@ class Speculater:
                 except IndexError:
                     sleep(60 * 2)
 
+    def cancel_non_profit_buy_orders(self):
+        for buy_order in self._get_buy_orders().values():
+            item_name = buy_order['item_name']
+            game = utils.get_game_with_item_name(item_name)  # добавити базу даних (item_hash_name | item_name_id | game)
+            buy_price = utils.convert_price_to_int(buy_order['price'])
+            buy_order_audit_info = auditor.get_profitability_info(item_name, game, self._steam_client,
+                                                                  buy_price=buy_price)
+            if not buy_order_audit_info.is_profit:
+                self._steam_client.market.cancel_buy_order(buy_order['order_id'])
+                #
+                print(f'Cancel buy orders "{item_name}"')
+                #
+            elif buy_order_audit_info.number_buy_orders_before_this > 15:  # Алгоритм після скількох відміняти/підіймати ціну
+                self._steam_client.market.cancel_buy_order(buy_order['order_id'])
+                #
+                print(f'Cancel buy orders "{item_name}"')
+                #
+
+    def cancel_non_competitive_sell_orders(self):
+        pass
+
     def sell_all_inventory(self):
         for game in self._games:
-            for item_name_id in self._get_my_inventory_items_name_id(game.steam):
-                self._steam_client.market.create_sell_order(assetid=item_name_id, game=game.steam,
-                                                            money_to_receive='100000')  # Добавити за якою ціною продати
+            for asset_id, item_name in self._get_my_inventory_asset_id_end_item_name(game.steam):
+                self._steam_client.market.create_sell_order(assetid=asset_id, game=game.steam,
+                                                            money_to_receive=auditor.get_min_sell_price(item_name,
+                                                                                                        game.steam))
+                self._remove_item_name_in_buy_orders(item_name)
+                #
+                print(f'Create_sell_order "{item_name}"')
+                #
+        self._update_limit_of_allowed_orders(update_sum_all_buy_orders=True)
 
-# видалити з _items_name_in_buy_orders і відняти від _sum_all_buy_orders якщо щось купилось(появилось в інвентарі)
+    def run(self):
+        while True:
+            self.cancel_non_profit_buy_orders()
+            sleep(30)
+            self.create_buy_orders()
+            sleep(30)
+            self.sell_all_inventory()
+            sleep(30)
+            self.cancel_non_competitive_sell_orders()
+            sleep(30)

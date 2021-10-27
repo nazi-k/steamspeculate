@@ -43,10 +43,10 @@ class TableService:
 
 
 class ProfitabilityInfo:
-    is_profit: bool
-    buy_price: int
-
-    def __init__(self, is_profit: bool, buy_price: int) -> None:
+    def __init__(self, is_profit: bool, buy_price: int = 0,
+                 percent_profit: float = 0, number_buy_orders_before_this: int = 0) -> None:
         self.is_profit = is_profit
+        self.percent_profit = percent_profit
         self.buy_price = buy_price
+        self.number_buy_orders_before_this = number_buy_orders_before_this
         self.quantity = 1  # алгоритм по кількості купівлі

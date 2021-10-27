@@ -5,7 +5,7 @@ from steampy.client import SteamClient
 try:
     import environment_variables
 except ImportError:
-    raise ImportError('Відсутній файл environment_variables.py з змінними середи')
+    raise ImportError('Відсутній файл environment_variables.py з змінними середовища')
 
 STEAM_API_KEY = getenv('STEAM_API_KEY')
 USERNAME = getenv('USERNAME')
@@ -16,6 +16,7 @@ PHPSESSID = getenv('PHPSESSID')
 
 steam_client = SteamClient(STEAM_API_KEY)
 steam_client.login(USERNAME, PASSWORD, PATH_TO_STEAMGUARD_FILE)
-print(steam_client.market.get_my_market_listings())
 
-Speculater(steam_client, phpsessid=PHPSESSID).create_buy_orders()
+speculater = Speculater(steam_client, phpsessid=PHPSESSID)
+
+speculater.run()
