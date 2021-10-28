@@ -2,6 +2,7 @@ import lib.utils as utils
 from lib.models import ProfitabilityInfo
 from steampy.client import SteamClient
 from steampy.models import GameOptions, Currency
+from steampy.exceptions import TooManyRequests
 from time import sleep
 
 
@@ -14,12 +15,12 @@ def get_profitability_info(item_hash_name: str,
     try:
         median_price = utils.convert_price_to_int(
             steam_client.market.fetch_price(item_hash_name, game, currency)['median_price'])
-    except KeyError:
-        sleep(60 * 3)
+    except TooManyRequests or KeyError:
+        sleep(60 * 5)
         try:
             median_price = utils.convert_price_to_int(
                 steam_client.market.fetch_price(item_hash_name, game, currency)['median_price'])
-        except KeyError:
+        except TooManyRequests or KeyError:
             return ProfitabilityInfo(False)
 
     item_name_id = utils.get_item_name_id(item_hash_name, game)
@@ -51,6 +52,7 @@ def get_number_buy_orders_before_this(price_this: int, histogram: dict):
         if utils.convert_price_to_int(buy_order_info[2].replace(str(buy_order_info[1]), '', 1)) <= price_this:
             return number_buy_orders_before_this
         number_buy_orders_before_this += buy_order_info[1]
+    print('get_number_buy_orders_before_this')
     raise  # Ордер відсутній
 
 

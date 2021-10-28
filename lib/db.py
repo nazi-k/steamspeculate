@@ -18,21 +18,20 @@ def insert(table: str, column_values: dict):
 
 
 def get_item_name_id(hash_name: str, table: str) -> Union[int, None]:
-    cursor.execute(f"SELECT item_nameid FROM {table} "
-                   f"WHERE hash_name='{hash_name}'")
+    cursor.execute(f'SELECT item_nameid FROM {table} WHERE hash_name="{hash_name}"')
     item_nameid = cursor.fetchone()
     if not item_nameid:
         return None
+
     return int(*item_nameid)
 
 
 def get_game_name_with_item_name(hash_name: str) -> Union[str, None]:
-    this_table: bool
     cursor.execute("SELECT name FROM sqlite_master "
                    "WHERE type='table'")
     table_names = cursor.fetchall()
     for table_name in table_names:
-        cursor.execute(f"SELECT COUNT(*) FROM {str(*table_name)} WHERE hash_name='{hash_name}'")
+        cursor.execute(f'SELECT COUNT(*) FROM {str(*table_name)} WHERE hash_name="{hash_name}"')
         if bool(*cursor.fetchone()):
             return str(*table_name)
     return None
@@ -58,6 +57,10 @@ def check_db_exists():
     if table_exists:
         return
     _init_db()
+
+
+class NoHashName(Exception):
+    pass
 
 
 check_db_exists()

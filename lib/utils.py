@@ -1,6 +1,7 @@
 import re
 import requests
 import lib.db as db
+from lib.db import NoHashName
 from typing import Union
 from steampy.models import SteamUrl, Currency, GameOptions
 
@@ -48,12 +49,13 @@ def get_dollar_exchange_rate(currency: Currency = Currency.UAH) -> float:
 def get_game_with_item_name(item_hash_name: str) -> GameOptions:
     game_name = db.get_game_name_with_item_name(item_hash_name)
     if not game_name:
-        raise
+        raise NoHashName(Exception, 'Item name is not identified in any table')
     elif game_name == 'DOTA2':
         return GameOptions.DOTA2
     elif game_name == 'TF2':
         return GameOptions.TF2
     else:
+        print('get_game_with_item_name')
         raise
 
 
@@ -62,4 +64,5 @@ def get_table_name_with_game(game: GameOptions) -> str:
         return 'DOTA2'
     elif game == GameOptions.TF2:
         return 'TF2'
+    print('get_table_name_with_game')
     raise

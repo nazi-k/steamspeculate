@@ -129,7 +129,14 @@ class Speculater:
     def cancel_non_profit_buy_orders(self):
         for buy_order in self._get_buy_orders().values():
             item_name = buy_order['item_name']
-            game = utils.get_game_with_item_name(item_name)  # добавити базу даних (item_hash_name | item_name_id | game)
+            try:
+                game = utils.get_game_with_item_name(item_name)
+            except utils.NoHashName:
+                self._steam_client.market.cancel_buy_order(buy_order['order_id'])
+                #
+                print(f'Cancel buy orders "{item_name}"')
+                #
+                continue
             buy_price = utils.convert_price_to_int(buy_order['price'])
             buy_order_audit_info = auditor.get_profitability_info(item_name, game, self._steam_client,
                                                                   buy_price=buy_price)
@@ -155,7 +162,7 @@ class Speculater:
                                                                                                         game.steam))
                 self._remove_item_name_in_buy_orders(item_name)
                 #
-                print(f'Create_sell_order "{item_name}"')
+                print(f'Create sell order "{item_name}"')
                 #
         self._update_limit_of_allowed_orders(update_sum_all_buy_orders=True)
 
