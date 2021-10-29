@@ -84,6 +84,7 @@ class TableScraper:
     def get_items_hash_name(self, game: TableGame) -> set:
         page = 1
         items_hash_name = set()
+        first_iteration = True
         while True:
             bs = BeautifulSoup(self._get_page(page, game), 'html.parser')
             tags_with_url = bs.find_all('a', {'href': re.compile(r'https://steamcommunity\.com')})
@@ -94,8 +95,9 @@ class TableScraper:
 
             if len(items_hash_name_on_page) < 30:
                 break
-            if items_hash_name_on_page <= items_hash_name:
+            if not first_iteration and items_hash_name_on_page <= items_hash_name:
                 break
             page += 1
+            first_iteration = False
 
         return items_hash_name
