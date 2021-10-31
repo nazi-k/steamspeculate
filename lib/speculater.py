@@ -118,6 +118,7 @@ class Speculater:
 
     def create_buy_orders(self):
         self._update_wallet_balance()
+        self._scraper.set_max_price(self._get_dollar_max_buy_price())
         for game in self._games:
             items_hash_name = self._scraper.get_items_hash_name(game.table)
             for item_hash_name in items_hash_name:
@@ -133,6 +134,7 @@ class Speculater:
                 game = utils.get_game_with_item_name(item_name)
             except utils.NoHashName:
                 self._steam_client.market.cancel_buy_order(buy_order['order_id'])
+                self._remove_item_name_in_buy_orders(item_name)
                 #
                 print(f'Cancel buy orders "{item_name}"')
                 #
@@ -142,14 +144,18 @@ class Speculater:
                                                                   buy_price=buy_price)
             if not buy_order_audit_info.is_profit:
                 self._steam_client.market.cancel_buy_order(buy_order['order_id'])
+                self._remove_item_name_in_buy_orders(item_name)
                 #
                 print(f'Cancel buy orders "{item_name}"')
                 #
             elif buy_order_audit_info.number_buy_orders_before_this > 15:  # Алгоритм після скількох відміняти/підіймати ціну
                 self._steam_client.market.cancel_buy_order(buy_order['order_id'])
+                self._remove_item_name_in_buy_orders(item_name)
                 #
                 print(f'Cancel buy orders "{item_name}"')
                 #
+            sleep(3.5)
+        self._update_limit_of_allowed_orders(update_sum_all_buy_orders=True)
 
     def cancel_non_competitive_sell_orders(self):
         pass
