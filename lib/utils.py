@@ -46,6 +46,7 @@ def get_dollar_exchange_rate(currency: Currency = Currency.UAH) -> float:
     return round(int(get_item_orders_histogram(1, currency)['highest_buy_order']) /
                  int(get_item_orders_histogram(1, Currency.USD)['highest_buy_order']), 2)
 
+
 def get_game_with_item_name(item_hash_name: str) -> GameOptions:
     game_name = db.get_game_name_with_item_name(item_hash_name)
     if not game_name:

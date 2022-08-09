@@ -71,7 +71,7 @@ class Speculater:
             pass
 
     def _get_my_inventory_asset_id_end_item_name(self, game: GameOptions) -> list:
-        return [(asset_id, values['name'])
+        return [(asset_id, values['market_hash_name'])
                 for asset_id, values in self._steam_client.get_my_inventory(game=game).items()]
 
     def if_profit_create_buy_order(self, item_hash_name: str, game: GameOptions, is_recursion: bool = False):
@@ -100,7 +100,7 @@ class Speculater:
                         self._update_limit_of_allowed_orders(update_sum_all_buy_orders=True)
                         dollar_max_buy_price = self._get_dollar_max_buy_price()
                         if dollar_max_buy_price < 0.1:
-                            pass  # треба виходити нічого не купиш
+                            pass  # треба виходити(raise) нічого не купиш
                         else:
                             self._scraper.set_max_price(dollar_max_buy_price)
                     finally:
@@ -136,7 +136,7 @@ class Speculater:
                 self._steam_client.market.cancel_buy_order(buy_order['order_id'])
                 self._remove_item_name_in_buy_orders(item_name)
                 #
-                print(f'Cancel buy orders "{item_name}"')
+                print(f'Cancel buy order "{item_name}"')
                 #
                 continue
             buy_price = utils.convert_price_to_int(buy_order['price'])
@@ -146,13 +146,13 @@ class Speculater:
                 self._steam_client.market.cancel_buy_order(buy_order['order_id'])
                 self._remove_item_name_in_buy_orders(item_name)
                 #
-                print(f'Cancel buy orders "{item_name}"')
+                print(f'Cancel buy order "{item_name}"')
                 #
-            elif buy_order_audit_info.number_buy_orders_before_this > 15:  # Алгоритм після скількох відміняти/підіймати ціну
+            elif buy_order_audit_info.number_buy_orders_before_this > 45:  # Алгоритм після скількох відміняти/підіймати ціну
                 self._steam_client.market.cancel_buy_order(buy_order['order_id'])
                 self._remove_item_name_in_buy_orders(item_name)
                 #
-                print(f'Cancel buy orders "{item_name}"')
+                print(f'Cancel buy order "{item_name}"')
                 #
             sleep(3.5)
         self._update_limit_of_allowed_orders(update_sum_all_buy_orders=True)
@@ -174,11 +174,11 @@ class Speculater:
 
     def run(self):
         while True:
+            self.sell_all_inventory()
+            sleep(30)
             self.cancel_non_profit_buy_orders()
             sleep(30)
             self.create_buy_orders()
-            sleep(30)
-            self.sell_all_inventory()
             sleep(30)
             self.cancel_non_competitive_sell_orders()
             sleep(30)

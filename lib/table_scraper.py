@@ -88,8 +88,7 @@ class TableScraper:
         while True:
             bs = BeautifulSoup(self._get_page(page, game), 'html.parser')
             tags_with_url = bs.find_all('a', {'href': re.compile(r'https://steamcommunity\.com')})
-            items_hash_name_on_page = \
-                set(map(lambda item_hash_name: item_hash_name['href'].split('/')[-1], tags_with_url))
+            items_hash_name_on_page = {item_hash_name['href'].split('/')[-1] for item_hash_name in tags_with_url}
 
             items_hash_name |= items_hash_name_on_page
 
