@@ -1,6 +1,6 @@
 <<<<<<< HEAD
-./environment_variables.py
-./steamguard.json
+environment_variables.py
+steamguard.json
 ./items.db
 =======
 # Byte-compiled / optimized / DLL files
